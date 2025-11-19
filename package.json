@@ -1,0 +1,14 @@
+{
+  "name": "practica-continua",
+  "version": "1.0.0",
+  "description": "Aplicación de ejemplo para práctica de CI/CD",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "author": "",
+  "license": "ISC"
+}
