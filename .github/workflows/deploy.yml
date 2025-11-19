@@ -16,7 +16,8 @@ jobs:
       - name: Set image name and tags
         id: vars
         run: |
-          IMAGE="${{ secrets.DOCKER_USERNAME }}/$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)"
+          # Use hardcoded image name from your friend's repo
+          IMAGE="tyrantoftheseas/practica-continua"
           SHORT_SHA=${GITHUB_SHA:0:7}
           DATE=$(date +%Y%m%d)
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
