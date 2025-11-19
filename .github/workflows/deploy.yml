@@ -16,13 +16,33 @@ jobs:
       - name: Set image name and tags
         id: vars
         run: |
-          # Use hardcoded image name from your friend's repo
-          IMAGE="tyrantoftheseas/practica-continua"
+          # Use dynamic image name based on DOCKER_USERNAME secret and repo name
+          IMAGE="${{ secrets.DOCKER_USERNAME }}/$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)"
           SHORT_SHA=${GITHUB_SHA:0:7}
           DATE=$(date +%Y%m%d)
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
           echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
           echo "DATE=$DATE" >> $GITHUB_ENV
+
+      - name: Validate required secrets
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        run: |
+          missing=false
+          for v in DOCKER_USERNAME DOCKER_PASSWORD RENDER_API_KEY RENDER_SERVICE_ID; do
+            if [ -z "${!v}" ]; then
+              echo "Missing required secret: $v" >&2
+              missing=true
+            fi
+          done
+          if [ "$missing" = "true" ]; then
+            echo "Set the required secrets in repository Settings → Secrets and variables → Actions" >&2
+            exit 1
+          fi
+          echo "All required secrets are present."
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
