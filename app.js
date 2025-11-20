@@ -143,15 +143,15 @@ const server = http.createServer((req, res) => {
     </head>
     <body>
       <div class="container">
-        <h1>🚀 ¡Hola Mundo!</h1>
+        <h1>🚀 Cont. Practica Anterior</h1>
         
         <div class="greeting">
-          ¡Bienvenido,<br>
-          <span class="name">George Santana 2024-0001</span>!
+          Hola, soy <span class="name">Bernardo Gomera</span><br>
+          matrícula <strong>2020-9643</strong>.
         </div>
         
         <p style="color: #666; margin-bottom: 20px;">
-          Esta es tu aplicación desplegada exitosamente con un pipeline completo de CI/CD
+          Esta página representa la entrega continua solicitada para el viernes 29 de agosto de 2025 a las 09:19. Aquí validamos que GitHub Actions construye la imagen con tu Dockerfile original y dispara el despliegue automático en Render.
         </p>
         
         <div class="badges">
@@ -173,9 +173,9 @@ const server = http.createServer((req, res) => {
         </div>
         
         <div class="footer">
-          <p>🎉 Práctica de DevOps completada</p>
+          <p>🎓 Bernardo Gomera · Matrícula 2020-9643</p>
           <p style="margin-top: 10px; font-size: 0.8em;">
-            Powered by Node.js + Docker + CI/CD
+            Esta app se mantiene con Node.js + Docker + CI/CD en Render y Docker Hub
           </p>
         </div>
       </div>
