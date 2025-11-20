@@ -1,83 +1,57 @@
-name: "Build, Push Docker Image and Deploy to Render"
+name: CI-CD DevOps Pipeline
+
+# Prevent overlapping runs in case multiple pushes arrive in quick succession.
+concurrency:
+  group: ci-cd-devops
+  cancel-in-progress: false
 
 on:
   push:
-    branches:
-      - main
+    branches: ["main"]
 
 jobs:
-  build-and-deploy:
-    name: Build, Push and Deploy
+  build_and_push:
+    name: Build + Push Docker Image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set image name and tags
-        id: vars
-        run: |
-          # Use dynamic image name based on DOCKER_USERNAME secret and repo name
-          IMAGE="${{ secrets.DOCKER_USERNAME }}/$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)"
-          SHORT_SHA=${GITHUB_SHA:0:7}
-          DATE=$(date +%Y%m%d)
-          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
-          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
-          echo "DATE=$DATE" >> $GITHUB_ENV
-
-      - name: Validate required secrets
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
-        run: |
-          missing=false
-          for v in DOCKER_USERNAME DOCKER_PASSWORD RENDER_API_KEY RENDER_SERVICE_ID; do
-            if [ -z "${!v}" ]; then
-              echo "Missing required secret: $v" >&2
-              missing=true
-            fi
-          done
-          if [ "$missing" = "true" ]; then
-            echo "Set the required secrets in repository Settings → Secrets and variables → Actions" >&2
-            exit 1
-          fi
-          echo "All required secrets are present."
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
+      - name: Prepare Docker buildx builder
+        uses: docker/setup-buildx-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          buildkitd-flags: --debug
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v4
+      - name: Authenticate to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and publish Docker image
+        uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile
+          file: Dockerfile
           push: true
-          tags: |
-            ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ env.SHORT_SHA }}
-            ${{ env.IMAGE }}:${{ env.DATE }}
+          tags: bernardogomera/hola-mundo:latest
+          platforms: linux/amd64,linux/arm64
 
-      - name: Trigger deploy on Render
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+  deploy_render:
+    name: Trigger Render Deployment
+    needs: build_and_push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Fire Render deploy hook
         run: |
-          echo "Triggering deploy on Render for service $RENDER_SERVICE_ID"
-          response="$(curl -s -w '\n%{http_code}' -X POST \
-            -H "Accept: application/json" \
-            -H "Authorization: Bearer $RENDER_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d '{}' \
-            "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys")"
-          body="$(echo "$response" | sed '$d')"
-          status="$(echo "$response" | tail -n1)"
-          echo "Render response status: $status"
-          echo "Render response body: $body"
-          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
-            echo "Render deploy trigger failed with status $status"
-            exit 1
-          fi
+          curl --fail --silent --show-error -X POST \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json"
